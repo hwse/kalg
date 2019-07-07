@@ -3,7 +3,7 @@ import java.math.BigInteger
 
 fun Double.format(digits: Int): String = java.lang.String.format("%.${digits}f", this)
 
-fun ggt(x: BigInteger, y:BigInteger): BigInteger {
+tailrec fun ggt(x: BigInteger, y:BigInteger): BigInteger {
     return if (y > BigInteger.ZERO) {
         ggt(y, x % y)
     } else {
