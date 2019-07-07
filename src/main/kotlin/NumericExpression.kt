@@ -5,6 +5,19 @@ interface Expression {
     fun represent(): String
 }
 
+interface Parent {
+    /** get child -> go down the tree */
+    val child: Expression
+
+    /** rebuild this with other child */
+    fun reconstruct(newChild: Expression): Expression
+}
+
+interface Parent2 {
+    val children: Pair<Expression, Expression>
+    fun reconstruct(newChild1: Expression, newChild2: Expression): Expression
+}
+
 interface NumericExpression: Expression {
     fun calculate(exact: Boolean = false): NumericExpression
 }
@@ -22,6 +35,12 @@ interface NaturalNumber: RealNumber {
 }
 
 class BoolConstant(val value: Boolean): BooleanExpression {
+
+    companion object {
+        val FALSE = BoolConstant(false)
+        val TRUE = BoolConstant(true)
+    }
+
     override fun calculate(): BooleanExpression {
         return this
     }
@@ -33,6 +52,7 @@ class BoolConstant(val value: Boolean): BooleanExpression {
 }
 
 class NaturalNumberConstant(override val longValue: BigInteger): NaturalNumber {
+
     override val doubleValue: Double
         get() = longValue.toDouble()
 
@@ -57,7 +77,8 @@ class RealNumberConstant(override val doubleValue: Double): RealNumber {
     }
 }
 
-class Variable(private val name: String): NumericExpression {
+class Variable(val name: String): NumericExpression {
+
     override fun calculate(exact: Boolean): NumericExpression {
         return this
     }
@@ -67,7 +88,15 @@ class Variable(private val name: String): NumericExpression {
     }
 }
 
-class SquareRoot(private val of: NumericExpression): NumericExpression {
+class SquareRoot(private val of: NumericExpression): NumericExpression, Parent {
+
+    override val child: Expression
+        get() = of
+
+    override fun reconstruct(newChild: Expression): Expression {
+        return SquareRoot(newChild as NumericExpression)
+    }
+
     override fun calculate(exact: Boolean): NumericExpression {
         val of = of.calculate(exact)
         if (of is NaturalNumber) {
@@ -94,7 +123,15 @@ class SquareRoot(private val of: NumericExpression): NumericExpression {
 
 }
 
-class Addition(private val left: NumericExpression, private val right: NumericExpression): NumericExpression {
+class Addition(private val left: NumericExpression, private val right: NumericExpression): NumericExpression, Parent2 {
+
+    override val children: Pair<Expression, Expression>
+        get() = Pair(left, right)
+
+    override fun reconstruct(newChild1: Expression, newChild2: Expression): Expression {
+        return Addition(newChild1 as NumericExpression, newChild2 as NumericExpression)
+    }
+
     override fun calculate(exact: Boolean): NumericExpression {
         val left = left.calculate(exact)
         val right = right.calculate(exact)
@@ -118,7 +155,15 @@ class Addition(private val left: NumericExpression, private val right: NumericEx
 
 }
 
-class Fraction(val up: NumericExpression, val low: NumericExpression): NumericExpression {
+class Fraction(val up: NumericExpression, val low: NumericExpression): NumericExpression, Parent2 {
+
+    override val children: Pair<Expression, Expression>
+        get() = Pair(up, low)
+
+    override fun reconstruct(newChild1: Expression, newChild2: Expression): Expression {
+        return Fraction(newChild1 as NumericExpression, newChild2 as NumericExpression)
+    }
+
     override fun represent(): String {
         return "(${up.represent()}/${low.represent()})"
     }
@@ -152,8 +197,22 @@ class Fraction(val up: NumericExpression, val low: NumericExpression): NumericEx
 
 }
 
-class Equals(val left: NumericExpression, val right: NumericExpression): BooleanExpression {
+class Equals(val left: NumericExpression, val right: NumericExpression): BooleanExpression, Parent2 {
+
+    override val children: Pair<Expression, Expression>
+        get() = Pair(left, right)
+
+    override fun reconstruct(newChild1: Expression, newChild2: Expression): Expression {
+        return Equals(newChild1 as NumericExpression, newChild2 as NumericExpression)
+    }
+
     override fun calculate(): BooleanExpression {
+        val left = left.calculate(true)
+        val right = right.calculate(true)
+
+        if (left is RealNumber && right is RealNumber) {
+            return (left.doubleValue == right.doubleValue).toExpression()
+        }
         return this
     }
 
@@ -162,3 +221,4 @@ class Equals(val left: NumericExpression, val right: NumericExpression): Boolean
     }
 
 }
+
